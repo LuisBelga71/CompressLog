@@ -1,8 +1,11 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 
 namespace CompressLogs
 {
@@ -14,8 +17,6 @@ namespace CompressLogs
 
         static void Main(string[] args)
         {
-            Process process = null;
-
             Logger.LoggerInstance.Info("Start CompressLogs");
 
             try
@@ -30,19 +31,55 @@ namespace CompressLogs
 
                 Logger.LoggerInstance.Info("args: " + JsonConvert.SerializeObject(args));
 
-                string path7z = args[0].Replace('@', ' ');
-                string filescompressPath = args[1];   // @"D:\Apps\Qpon\Logs\Api\log-*-2022-02-22.log";
-                string destinationPath = args[2];     //@"D:\LogsComprimidos\QponAPI\2022-02-22.7z";
+                string filescompressPath = args[0];
+                string destinationPath = args[1]; 
 
+                destinationPath = Path.Combine(destinationPath, args[0].Split('\\').Last());
+
+                Logger.LoggerInstance.Info("destinationPath: " + destinationPath);
+                Logger.LoggerInstance.Info("filescompressPath: " + filescompressPath);
+
+                var files = Directory.GetFiles(filescompressPath).Where(f => f.EndsWith(".log", StringComparison.OrdinalIgnoreCase)).ToList();
+
+                List<string> datesProcessedFiles = new List<string>();
+
+                foreach (var file in files)
+                {
+                    var fileName = file.Split('\\').Last();
+                    fileName = fileName.Replace("log-all-db-", string.Empty).Replace("log-own-", string.Empty).Replace("log-error-", string.Empty);
+
+                    string date = fileName.Split('.')[0];
+
+                    string pathFiles = Path.Combine(filescompressPath, "log-*-" + date + "*.log");
+                    string pathDestination = Path.Combine(destinationPath, date + ".7z");
+
+                    if (!datesProcessedFiles.Contains(date)) 
+                    {
+                        datesProcessedFiles.Add(date);
+                        CompressFile(pathDestination, pathFiles);
+                    }                    
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+                Logger.LoggerInstance.Error("Exception: " + ex.ToString());
+            }      
+        }
+        private static void CompressFile(string destinationPath, string filescompressPath)
+        {
+            Process process = null;
+            try
+            {
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
-                    FileName = path7z, //@"D:\Program Files\7-Zip\7z.exe",
+                    FileName = "7z.exe",
 
-                    Arguments = "a -t7z -ms=e5f -sdel \"" + destinationPath + "\" \"" + filescompressPath + "\"",
+                    Arguments = @"a -t7z -ms=e5f -sdel " + destinationPath + " " + filescompressPath,
 
                     WindowStyle = ProcessWindowStyle.Hidden
                 };
-            
+
                 Logger.LoggerInstance.Info(string.Format("ProcessStartInfo, arguments: {0} , fileName: {1}", psi.Arguments, psi.FileName));
 
                 Logger.LoggerInstance.Info("Process Start");
@@ -57,19 +94,19 @@ namespace CompressLogs
             {
                 Console.WriteLine(ex.ToString());
                 Logger.LoggerInstance.Error("Win32Exception: " + ex.ToString());
-                Environment.Exit(-2);
+                throw ex;
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.ToString());
                 Logger.LoggerInstance.Error("Exception: " + ex.ToString());
-                Environment.Exit(-2);
+                throw ex;
             }
-            finally 
+            finally
             {
                 Logger.LoggerInstance.Info("Process dispose");
                 process?.Dispose();
-            }       
+            }
         }
     }
 }
