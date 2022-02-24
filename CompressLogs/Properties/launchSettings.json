@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "CompressLogs": {
+      "commandName": "Project",
+      "commandLineArgs": "D:\\Program@Files\\7-Zip\\7z.exe D:\\Apps\\Qpon\\Logs\\Api\\log-*-2022-02-22.log D:\\LogsComprimidos\\QponAPI\\2022-02-22.7z"
+    }
+  }
+}
