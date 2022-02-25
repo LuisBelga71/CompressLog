@@ -39,21 +39,28 @@ namespace CompressLogs
                 Logger.LoggerInstance.Info("destinationPath: " + destinationPath);
                 Logger.LoggerInstance.Info("filescompressPath: " + filescompressPath);
 
-                var files = Directory.GetFiles(filescompressPath).Where(f => f.EndsWith(".log", StringComparison.OrdinalIgnoreCase)).ToList();
+                var files = Directory.GetFiles(filescompressPath).Where(f => f.EndsWith(".log", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)).ToList();
 
                 List<string> datesProcessedFiles = new List<string>();
 
                 foreach (var file in files)
                 {
                     var fileName = file.Split('\\').Last();
-                    fileName = fileName.Replace("log-all-db-", string.Empty).Replace("log-own-", string.Empty).Replace("log-error-", string.Empty);
+                    fileName = fileName.Replace("log-all-db-", string.Empty).Replace("log-own-", string.Empty).Replace("log-error-", string.Empty).Replace("QponApi-", string.Empty).Replace("QPON_QponExChangeApi-", string.Empty).Replace("QponScheduleTask-", string.Empty).Replace("QPON_WWW-", string.Empty);
 
                     string date = fileName.Split('.')[0];
 
-                    string pathFiles = Path.Combine(filescompressPath, "log-*-" + date + "*.log");
+                    if (date.Split('-').Length > 3) 
+                    {
+                        date = date.Replace("-" + date.Split('-')[3], string.Empty);
+                    }
+
+                    //string pathFiles = Path.Combine(filescompressPath, "*log-*-" + date + "*.log OR *.txt");
+                    string pathFiles = Path.Combine(filescompressPath, "*log-*-" + date + "*.*");
                     string pathDestination = Path.Combine(destinationPath, date + ".7z");
 
-                    if (!datesProcessedFiles.Contains(date)) 
+                    DateTime.TryParse(date, out DateTime todayDate);
+                    if (!datesProcessedFiles.Contains(date) && DateTime.Now.Date != todayDate.Date) 
                     {
                         datesProcessedFiles.Add(date);
                         CompressFile(pathDestination, pathFiles);
@@ -77,7 +84,8 @@ namespace CompressLogs
 
                     Arguments = @"a -t7z -ms=e5f -sdel " + destinationPath + " " + filescompressPath,
 
-                    WindowStyle = ProcessWindowStyle.Hidden
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                                   
                 };
 
                 Logger.LoggerInstance.Info(string.Format("ProcessStartInfo, arguments: {0} , fileName: {1}", psi.Arguments, psi.FileName));
@@ -85,6 +93,8 @@ namespace CompressLogs
                 Logger.LoggerInstance.Info("Process Start");
 
                 process = Process.Start(psi);
+
+                process.PriorityClass = ProcessPriorityClass.BelowNormal;
 
                 Logger.LoggerInstance.Info("Process WaitForExit");
 
